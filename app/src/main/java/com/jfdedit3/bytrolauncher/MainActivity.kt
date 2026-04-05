@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
         binding.viewPager.offscreenPageLimit = GameRepository.games.size
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
-            tab.text = GameRepository.games[position].title
+            tab.text = GameRepository.games[position].shortTitle
         }.attach()
     }
 }
