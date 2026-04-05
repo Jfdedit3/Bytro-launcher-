@@ -2,10 +2,11 @@
 <resources>
     <string name="app_name">Bytro Launcher</string>
     <string name="app_subtitle">Bytro games in one app</string>
-    <string name="back">Back</string>
-    <string name="forward">Next</string>
-    <string name="refresh">Reload</string>
-    <string name="browser">Browser</string>
-    <string name="open">Open</string>
+    <string name="url_hint">Enter a game URL</string>
+    <string name="select_game">Select game</string>
+    <string name="reload_page">Reload page</string>
+    <string name="more_options">More options</string>
+    <string name="open_in_browser">Open in browser</string>
+    <string name="go_to_default_game_url">Open default game URL</string>
     <string name="no_browser_found">No browser app was found on this device.</string>
 </resources>
