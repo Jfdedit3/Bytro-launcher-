@@ -145,7 +145,7 @@ class GameWebFragment : Fragment() {
     override fun onDestroyView() {
         binding.webView.stopLoading()
         binding.webView.webChromeClient = null
-        binding.webView.webViewClient = null
+        binding.webView.webViewClient = WebViewClient()
         binding.webView.destroy()
         _binding = null
         super.onDestroyView()
