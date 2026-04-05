@@ -3,8 +3,9 @@
     <string name="app_name">Bytro Launcher</string>
     <string name="app_subtitle">Bytro games in one app</string>
     <string name="back">Back</string>
-    <string name="forward">Forward</string>
-    <string name="refresh">Refresh</string>
+    <string name="forward">Next</string>
+    <string name="refresh">Reload</string>
     <string name="browser">Browser</string>
+    <string name="open">Open</string>
     <string name="no_browser_found">No browser app was found on this device.</string>
 </resources>
