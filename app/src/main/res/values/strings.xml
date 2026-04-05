@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bytro Launcher</string>
+    <string name="app_subtitle">All your strategy battlefields in one place</string>
+    <string name="back">Back</string>
+    <string name="forward">Forward</string>
+    <string name="refresh">Refresh</string>
+    <string name="browser">Browser</string>
+    <string name="no_browser_found">No browser app was found on this device.</string>
+</resources>
