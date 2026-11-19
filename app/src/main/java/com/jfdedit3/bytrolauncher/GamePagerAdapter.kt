@@ -4,12 +4,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 
-class GamePagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {
-    private val fragments = GameRepository.games.map { GameWebFragment.newInstance(it) }
+class GamePagerAdapter(private val activity: FragmentActivity) : FragmentStateAdapter(activity) {
+    override fun getItemCount(): Int = GameRepository.games.size
 
-    override fun getItemCount(): Int = fragments.size
+    override fun createFragment(position: Int): Fragment =
+        GameWebFragment.newInstance(GameRepository.games[position])
 
-    override fun createFragment(position: Int): Fragment = fragments[position]
-
-    fun getFragment(position: Int): GameWebFragment = fragments[position]
+    fun getFragment(position: Int): GameWebFragment? =
+        activity.supportFragmentManager.findFragmentByTag("f${getItemId(position)}") as? GameWebFragment
 }
