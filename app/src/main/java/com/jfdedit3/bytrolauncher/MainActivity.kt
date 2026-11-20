@@ -1,111 +1,121 @@
 package com.jfdedit3.bytrolauncher
 
-import androidx.appcompat.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.jfdedit3.bytrolauncher.databinding.ActivityMainBinding
-import java.net.HttpURLConnection
-import java.net.URL
-import org.json.JSONObject
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
 
 class MainActivity : ImmersiveActivity() {
     private lateinit var binding: ActivityMainBinding
-    private var server: LocalXApiServer? = null
+    private lateinit var adapter: GalleryGridAdapter
     private val executor = Executors.newSingleThreadExecutor()
-    private val mainThread = Handler(Looper.getMainLooper())
+    private var allItems: List<GalleryMedia> = emptyList()
+    private var filter = 0
+
+    private val requestPermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            refresh()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        startApi()
-        showLastCrashIfPresent()
-
-        binding.serverButton.setOnClickListener {
-            if (server?.isRunning == true) {
-                server?.stop()
-                server = null
-                setStatus("Server stopped")
-            } else startApi()
+        adapter = GalleryGridAdapter(this) { media ->
+            startActivity(Intent(this, MediaViewerActivity::class.java)
+                .putExtra("media_uri", media.uri.toString())
+                .putExtra("is_video", media.isVideo))
         }
-        binding.previewButton.setOnClickListener {
-            val url = binding.postUrl.text.toString().trim()
-            if (url.isEmpty()) {
-                binding.resultText.text = "Enter an X.com profile or post URL."
-                return@setOnClickListener
-            }
-            binding.resultText.text = "Loading..."
-            val endpoint = "http://127.0.0.1:8787/v1/resolve?url=" +
-                URLEncoder.encode(url, "UTF-8")
-            executor.execute {
-                val response = try {
-                    val conn = URL(endpoint).openConnection() as HttpURLConnection
-                    conn.connectTimeout = 11000
-                    conn.readTimeout = 26000
-                    try {
-                        val body = (if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream)
-                            .bufferedReader().use { it.readText() }
-                        body
-                    } finally { conn.disconnect() }
-                } catch (e: Exception) { "Request failed: ${e.message}" }
-                mainThread.post {
-                    if (!isFinishing && !isDestroyed) {
-                        binding.resultText.text = try {
-                            JSONObject(response).toString(2)
-                        } catch (_: Exception) {
-                            response
-                        }
-                    }
+        binding.mediaGrid.numColumns = 3
+        binding.mediaGrid.horizontalSpacing = 3
+        binding.mediaGrid.verticalSpacing = 3
+        binding.mediaGrid.adapter = adapter
+        binding.refreshButton.setOnClickListener { refresh() }
+        binding.permissionsButton.setOnClickListener { askAccess() }
+        binding.allButton.setOnClickListener { setFilter(0) }
+        binding.photosButton.setOnClickListener { setFilter(1) }
+        binding.videosButton.setOnClickListener { setFilter(2) }
+        askAccess()
+    }
+
+    private fun requiredPermissions(): Array<String> = when {
+        Build.VERSION.SDK_INT >= 34 -> arrayOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO,
+            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+        )
+        Build.VERSION.SDK_INT >= 33 -> arrayOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO
+        )
+        else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+    private fun hasAccess(): Boolean {
+        val granted = requiredPermissions().any {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+        return granted
+    }
+
+    private fun askAccess() {
+        if (hasAccess()) refresh()
+        else requestPermissions.launch(requiredPermissions())
+    }
+
+    private fun refresh() {
+        if (!hasAccess()) {
+            binding.galleryStatus.text = "Autorise l'accès aux photos et vidéos pour afficher ta galerie."
+            binding.permissionsButton.isEnabled = true
+            adapter.update(emptyList())
+            return
+        }
+        binding.galleryStatus.text = "Chargement des médias..."
+        executor.execute {
+            val result = runCatching { GalleryRepository.query(this) }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                result.onSuccess {
+                    allItems = it
+                    setFilter(filter)
+                }.onFailure {
+                    binding.galleryStatus.text = "Impossible de lire les médias : " + it.javaClass.simpleName
+                    Toast.makeText(this, "Erreur de lecture de la galerie", Toast.LENGTH_SHORT).show()
                 }
             }
         }
-        binding.copyButton.setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("X Local API", "http://127.0.0.1:8787/health"))
-            Toast.makeText(this, "API endpoint copied", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setFilter(value: Int) {
+        filter = value
+        val visible = when (filter) {
+            1 -> allItems.filter { !it.isVideo }
+            2 -> allItems.filter { it.isVideo }
+            else -> allItems
         }
-    }
-
-    private fun showLastCrashIfPresent() {
-        val prefs = getSharedPreferences("diagnostics", MODE_PRIVATE)
-        val report = prefs.getString("last_crash", null) ?: return
-        prefs.edit().remove("last_crash").apply()
-        AlertDialog.Builder(this)
-            .setTitle("Previous app crash")
-            .setMessage(report.take(2200))
-            .setPositiveButton("Copy report") { _, _ ->
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("X Local API crash", report))
-                Toast.makeText(this, "Crash report copied", Toast.LENGTH_LONG).show()
-            }
-            .setNegativeButton("Close", null)
-            .show()
-    }
-
-    private fun startApi() {
-        try {
-            server = LocalXApiServer().also { it.start() }
-            setStatus("● Running on http://127.0.0.1:8787")
-        } catch (e: Exception) {
-            setStatus("Cannot start local API: ${e.message}")
+        adapter.update(visible)
+        val label = when (filter) {
+            1 -> "photos"
+            2 -> "vidéos"
+            else -> "médias"
         }
+        binding.galleryStatus.text = visible.size.toString() + " " + label +
+            " • Appuie sur un élément pour l'ouvrir"
     }
 
-    private fun setStatus(message: String) {
-        binding.serverStatus.text = message
-        binding.serverButton.text = if (server?.isRunning == true) "Stop server" else "Start server"
+    override fun onResume() {
+        super.onResume()
+        if (::binding.isInitialized && ::adapter.isInitialized && hasAccess()) refresh()
     }
 
     override fun onDestroy() {
-        server?.stop()
+        if (::adapter.isInitialized) adapter.close()
         executor.shutdownNow()
         super.onDestroy()
     }
