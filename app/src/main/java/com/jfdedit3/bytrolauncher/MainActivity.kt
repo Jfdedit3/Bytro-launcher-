@@ -1,7 +1,6 @@
 package com.jfdedit3.bytrolauncher
 
 import androidx.appcompat.app.AlertDialog
-import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -36,18 +35,6 @@ class MainActivity : ImmersiveActivity() {
                 server = null
                 setStatus("Server stopped")
             } else startApi()
-        }
-        binding.openXButton.setOnClickListener {
-            startActivity(Intent(this, XBrowserActivity::class.java)
-                .putExtra("url", binding.postUrl.text.toString().trim()))
-        }
-        binding.showSessionButton.setOnClickListener {
-            val saved = XSessionCache.latest()
-            binding.resultText.text = if (saved != null) {
-                runCatching { JSONObject(saved).toString(2) }.getOrDefault(saved)
-            } else {
-                "No authenticated post extracted yet. Open X and tap Extract."
-            }
         }
         binding.previewButton.setOnClickListener {
             val url = binding.postUrl.text.toString().trim()
