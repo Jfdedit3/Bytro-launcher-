@@ -87,7 +87,12 @@ class LocalXApiServer(private val port: Int = 8787) {
                 val path = uri.path.orEmpty()
                 when {
                     path == "/health" -> reply(connection, 200, JSONObject()
-                        .put("ok", true).put("service", "X Local API").put("version", "2.0").put("engine", "x_direct").toString())
+                        .put("ok", true).put("service", "X Local API").put("version", "2.1").put("engine", "x_direct").toString())
+                    path == "/v1/session/latest" -> {
+                        val saved = XSessionCache.latest()
+                        if (saved == null) reply(connection, 404, error("No extracted post available"))
+                        else reply(connection, 200, saved)
+                    }
                     path == "/v1/posts/oembed" || path == "/v1/resolve" -> {
                         val result = XPublicExtractor.resolve(uri.getQueryParameter("url"))
                         reply(connection, result.code, result.json.toString())
