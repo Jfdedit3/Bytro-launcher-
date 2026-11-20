@@ -13,7 +13,7 @@
             android:text="X LOCAL API" android:textStyle="bold" android:textSize="28sp"
             android:textColor="@color/text_primary"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="Your own localhost REST API for public X embeds and authenticated X v2 post lookup."
+            android:layout_marginTop="8dp" android:text="Local API for public X posts, profiles, media and official X v2 lookups."
             android:textColor="@color/text_secondary" android:textSize="15sp"/>
         <TextView android:id="@+id/serverStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="24dp"
@@ -23,16 +23,16 @@
             android:layout_height="wrap_content" android:layout_marginTop="12dp"
             android:text="Stop server"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="20dp" android:text="POST URL" android:textStyle="bold"
+            android:layout_marginTop="20dp" android:text="X.COM URL" android:textStyle="bold"
             android:textColor="@color/text_primary"/>
         <EditText android:id="@+id/postUrl" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="6dp"
-            android:hint="https://x.com/user/status/123456" android:inputType="textUri"
+            android:hint="https://x.com/user or /status/123456" android:inputType="textUri"
             android:singleLine="true" android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"/>
         <Button android:id="@+id/previewButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="10dp"
-            android:text="Fetch public oEmbed JSON"/>
+            android:text="Fetch public X JSON"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="20dp" android:text="JSON RESPONSE" android:textStyle="bold"
             android:textColor="@color/text_primary"/>
