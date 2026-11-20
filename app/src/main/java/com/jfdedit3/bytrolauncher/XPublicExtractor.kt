@@ -38,17 +38,31 @@ object XPublicExtractor {
 
     fun post(id: String, username: String? = null): Result {
         if (!id.matches(Regex("[0-9]{1,20}"))) return failure(400, "invalid_id", "Numeric post ID required.")
-        // X's own publicly accessible syndication widget data (undocumented).
-        val token = syndicationToken(id)
-        val endpoint = "https://cdn.syndication.twimg.com/tweet-result?id=$id&lang=en&token=$token"
+        // X syndication accepts a nonempty token. A fixed token avoids subtle
+        // JavaScript-to-Kotlin base36 floating point conversion differences.
+        val endpoint = "https://cdn.syndication.twimg.com/tweet-result?id=$id&lang=en&token=x"
         val widget = get(endpoint)
+        var syndicationKind = "no_json"
+        var responseKeys = JSONArray()
         if (widget.code == 200) {
             try {
                 val json = JSONObject(widget.content)
-                if (json.optString("id_str") == id || json.optString("id") == id) {
+                responseKeys = JSONArray(json.keys().asSequence().take(16).toList())
+                syndicationKind = json.optString("__typename", "unknown")
+                // id_str is a lossless string; JSON numeric IDs can exceed 2^53.
+                val actualId = json.optString("id_str").ifBlank {
+                    json.opt("id")?.toString().orEmpty()
+                }
+                if (actualId == id && json.optJSONObject("user") != null) {
                     return Result(200, normalizePost(json, id, "x_syndication"))
                 }
-            } catch (_: Exception) { }
+                if (json.length() == 0) syndicationKind = "empty_object"
+                if (json.optString("__typename") == "TweetTombstone") {
+                    syndicationKind = "TweetTombstone"
+                }
+            } catch (_: Exception) {
+                syndicationKind = "invalid_json"
+            }
         }
         // Fallback: parse the OG metadata of the X.com page, not a third-party service.
         if (username != null && username.matches(Regex("[A-Za-z0-9_]{1,15}"))) {
@@ -73,7 +87,12 @@ object XPublicExtractor {
         }
         return failure(404, "post_unavailable",
             "X did not return public post data. The post may be restricted, deleted, or blocked to logged-out visitors.",
-            JSONObject().put("id", id).put("syndication_status", widget.code))
+            JSONObject()
+                .put("id", id)
+                .put("syndication_status", widget.code)
+                .put("syndication_type", syndicationKind)
+                .put("syndication_keys", responseKeys)
+                .put("response_size", widget.content.length))
     }
 
     fun profile(username: String): Result {
@@ -182,21 +201,6 @@ object XPublicExtractor {
             }
         }
         return null
-    }
-
-    private fun syndicationToken(id: String): String {
-        // Same numeric token convention used by X's own embed widget.
-        var value = (id.toDouble() / 1e15) * Math.PI
-        val integer = value.toLong()
-        val result = StringBuilder(java.lang.Long.toString(integer, 36))
-        value -= integer.toDouble()
-        repeat(13) {
-            value *= 36.0
-            val digit = value.toInt().coerceIn(0, 35)
-            result.append("0123456789abcdefghijklmnopqrstuvwxyz"[digit])
-            value -= digit
-        }
-        return result.toString().replace("0", "")
     }
 
     private fun failure(code: Int, name: String, message: String, details: JSONObject? = null): Result {
