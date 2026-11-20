@@ -38,10 +38,20 @@ class MainActivity : ImmersiveActivity() {
         setContentView(binding.root)
         adapter = GalleryGridAdapter(this,
             onOpen = { media ->
+                val selected = allItems.indexOfFirst { it.uri == media.uri }
+                val first = (selected - 6).coerceAtLeast(0)
+                val last = (selected + 7).coerceAtMost(allItems.size)
+                val strip = if (selected >= 0) allItems.subList(first, last)
+                    else listOf(media)
                 startActivity(Intent(this, MediaViewerActivity::class.java)
                     .putExtra("media_uri", media.uri.toString())
                     .putExtra("media_name", media.name)
-                    .putExtra("is_video", media.isVideo))
+                    .putExtra("is_video", media.isVideo)
+                    .putStringArrayListExtra("strip_uris",
+                        ArrayList(strip.map { it.uri.toString() }))
+                    .putStringArrayListExtra("strip_names",
+                        ArrayList(strip.map { it.name }))
+                    .putExtra("strip_videos", strip.map { it.isVideo }.toBooleanArray()))
             },
             isFavorite = { media -> isFavorite(media) },
             onFavorite = { media -> toggleFavorite(media) }
