@@ -7,35 +7,47 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import androidx.appcompat.app.AppCompatActivity
 
-/** Immersive fullscreen for both the dashboard and the X browser. */
+/**
+ * Apply immersive mode only after the activity window is attached.
+ * Do not modify decor fitting during super.onCreate: some Android builds
+ * fail or behave unpredictably when window insets are requested too early.
+ */
 abstract class ImmersiveActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enterImmersiveMode()
+        window.decorView.post { safelyEnterImmersive() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        window.decorView.post { safelyEnterImmersive() }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) enterImmersiveMode()
+        if (hasFocus) window.decorView.post { safelyEnterImmersive() }
+    }
+
+    private fun safelyEnterImmersive() {
+        if (isFinishing || isDestroyed) return
+        runCatching { enterImmersiveMode() }
     }
 
     @Suppress("DEPRECATION")
     protected fun enterImmersiveMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
             window.insetsController?.apply {
-                hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
                 systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
             }
         } else {
-            window.decorView.systemUiVisibility = (
+            window.decorView.systemUiVisibility =
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
                 View.SYSTEM_UI_FLAG_FULLSCREEN or
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            )
         }
     }
 }
