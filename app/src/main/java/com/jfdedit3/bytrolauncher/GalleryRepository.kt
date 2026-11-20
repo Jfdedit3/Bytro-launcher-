@@ -19,7 +19,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import java.util.concurrent.Executors
 
-data class GalleryMedia(val id: Long, val uri: Uri, val isVideo: Boolean, val name: String)
+data class GalleryMedia(val id: Long, val uri: Uri, val isVideo: Boolean, val name: String, val album: String)
 
 object GalleryRepository {
     fun query(context: Context): List<GalleryMedia> {
@@ -27,7 +27,8 @@ object GalleryRepository {
         val uri = MediaStore.Files.getContentUri("external")
         val cols = arrayOf(MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.MEDIA_TYPE,
-            MediaStore.Files.FileColumns.DISPLAY_NAME)
+            MediaStore.Files.FileColumns.DISPLAY_NAME,
+            MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
         val selection = MediaStore.Files.FileColumns.MEDIA_TYPE + "=? OR " +
             MediaStore.Files.FileColumns.MEDIA_TYPE + "=?"
         val arguments = arrayOf(
@@ -38,13 +39,15 @@ object GalleryRepository {
             val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
             val typeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
             val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            val albumCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
                 val video = cursor.getInt(typeCol) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
                 val base = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
                     else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
                 items.add(GalleryMedia(id, ContentUris.withAppendedId(base, id), video,
-                    cursor.getString(nameCol).orEmpty()))
+                    cursor.getString(nameCol).orEmpty(),
+                    if (albumCol >= 0) cursor.getString(albumCol).orEmpty().ifBlank { "Autres" } else "Autres"))
             }
         }
         return items
@@ -53,7 +56,9 @@ object GalleryRepository {
 
 class GalleryGridAdapter(
     private val context: Context,
-    private val onOpen: (GalleryMedia) -> Unit
+    private val onOpen: (GalleryMedia) -> Unit,
+    private val isFavorite: (GalleryMedia) -> Boolean,
+    private val onFavorite: (GalleryMedia) -> Unit
 ) : BaseAdapter() {
     private val items = ArrayList<GalleryMedia>()
     private val pool = Executors.newFixedThreadPool(3)
@@ -97,11 +102,26 @@ class GalleryGridAdapter(
             }
             frame.addView(badge, FrameLayout.LayoutParams(size / 4, size / 4,
                 Gravity.END or Gravity.BOTTOM))
-            cell = Cell(image, badge)
+            val heart = TextView(context).apply {
+                text = "♡"
+                textSize = 23f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                setBackgroundColor(0x770A0B16)
+            }
+            frame.addView(heart, FrameLayout.LayoutParams(size / 3, size / 3,
+                Gravity.TOP or Gravity.END))
+            cell = Cell(image, badge, heart)
             frame.tag = cell
         }
         val media = items[position]
         cell.badge.visibility = if (media.isVideo) View.VISIBLE else View.GONE
+        cell.heart.text = if (isFavorite(media)) "♥" else "♡"
+        cell.heart.setTextColor(if (isFavorite(media)) 0xFFE78BFA.toInt() else Color.WHITE)
+        cell.heart.setOnClickListener {
+            onFavorite(media)
+            notifyDataSetChanged()
+        }
         val key = media.uri.toString()
         cell.image.tag = key
         val cached = cache.get(key)
@@ -132,5 +152,5 @@ class GalleryGridAdapter(
 
     fun close() { pool.shutdownNow() }
 
-    private data class Cell(val image: ImageView, val badge: TextView)
+    private data class Cell(val image: ImageView, val badge: TextView, val heart: TextView)
 }
