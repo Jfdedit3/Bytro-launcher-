@@ -37,11 +37,11 @@ class MainActivity : AppCompatActivity() {
         binding.previewButton.setOnClickListener {
             val url = binding.postUrl.text.toString().trim()
             if (url.isEmpty()) {
-                binding.resultText.text = "Enter an X.com status URL."
+                binding.resultText.text = "Enter an X.com profile or post URL."
                 return@setOnClickListener
             }
             binding.resultText.text = "Loading..."
-            val endpoint = "http://127.0.0.1:8787/v1/posts/oembed?url=" +
+            val endpoint = "http://127.0.0.1:8787/v1/resolve?url=" +
                 URLEncoder.encode(url, "UTF-8")
             executor.execute {
                 val response = try {
