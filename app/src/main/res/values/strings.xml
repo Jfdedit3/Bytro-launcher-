@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Bytro Launcher</string>
-    <string name="app_subtitle">Bytro games in one app</string>
-    <string name="url_hint">Enter a game URL</string>
-    <string name="select_game">Select game</string>
-    <string name="reload_page">Reload page</string>
-    <string name="more_options">More options</string>
-    <string name="open_in_browser">Open in browser</string>
-    <string name="go_to_default_game_url">Open default game URL</string>
-    <string name="no_browser_found">No browser app was found on this device.</string>
+    <string name="app_name">X Local API</string>
+    <string name="app_subtitle">Local REST API for X.com</string>
 </resources>
