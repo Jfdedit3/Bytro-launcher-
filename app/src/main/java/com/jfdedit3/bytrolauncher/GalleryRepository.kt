@@ -19,14 +19,15 @@ import android.widget.ImageView
 import android.widget.TextView
 import java.util.concurrent.Executors
 
-data class GalleryMedia(val id: Long, val uri: Uri, val isVideo: Boolean)
+data class GalleryMedia(val id: Long, val uri: Uri, val isVideo: Boolean, val name: String)
 
 object GalleryRepository {
     fun query(context: Context): List<GalleryMedia> {
         val items = ArrayList<GalleryMedia>()
         val uri = MediaStore.Files.getContentUri("external")
         val cols = arrayOf(MediaStore.Files.FileColumns._ID,
-            MediaStore.Files.FileColumns.MEDIA_TYPE)
+            MediaStore.Files.FileColumns.MEDIA_TYPE,
+            MediaStore.Files.FileColumns.DISPLAY_NAME)
         val selection = MediaStore.Files.FileColumns.MEDIA_TYPE + "=? OR " +
             MediaStore.Files.FileColumns.MEDIA_TYPE + "=?"
         val arguments = arrayOf(
@@ -36,12 +37,14 @@ object GalleryRepository {
         context.contentResolver.query(uri, cols, selection, arguments, sorting)?.use { cursor ->
             val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
             val typeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
                 val video = cursor.getInt(typeCol) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
                 val base = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
                     else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                items.add(GalleryMedia(id, ContentUris.withAppendedId(base, id), video))
+                items.add(GalleryMedia(id, ContentUris.withAppendedId(base, id), video,
+                    cursor.getString(nameCol).orEmpty()))
             }
         }
         return items
