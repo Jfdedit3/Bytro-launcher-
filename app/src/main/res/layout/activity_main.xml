@@ -30,6 +30,12 @@
             android:hint="https://x.com/user or /status/123456" android:inputType="textUri"
             android:singleLine="true" android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"/>
+        <Button android:id="@+id/openXButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="10dp"
+            android:text="Open X / Sign in / Extract post"/>
+        <Button android:id="@+id/showSessionButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:text="Show last authenticated extraction"/>
         <Button android:id="@+id/previewButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="10dp"
             android:text="Fetch public X JSON"/>
