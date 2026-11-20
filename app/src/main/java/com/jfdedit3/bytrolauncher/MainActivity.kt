@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
                 val response = try {
                     val conn = URL(endpoint).openConnection() as HttpURLConnection
                     conn.connectTimeout = 11000
-                    conn.readTimeout = 11000
+                    conn.readTimeout = 26000
                     try {
                         val body = (if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream)
                             .bufferedReader().use { it.readText() }
