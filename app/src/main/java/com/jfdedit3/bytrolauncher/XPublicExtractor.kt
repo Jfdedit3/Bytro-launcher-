@@ -174,7 +174,7 @@ object XPublicExtractor {
 
     private fun meta(html: String, key: String): String? {
         val tags = Regex("<meta\\b[^>]*>", RegexOption.IGNORE_CASE)
-        val attrs = Regex("""([\\w:-]+)\\s*=\\s*["']([^"']*)["']""")
+        val attrs = Regex("""([\w:-]+)\s*=\s*["']([^"']*)["']""")
         for (tag in tags.findAll(html)) {
             val values = attrs.findAll(tag.value).associate { it.groupValues[1].lowercase(Locale.ROOT) to it.groupValues[2] }
             if (values["property"] == key || values["name"] == key) {
