@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Local-only HTTP API. No token is stored or included in the app.
  * GET /health
- * GET /v1/posts/oembed?url=https://x.com/user/status/123
+ * GET /v1/resolve?url=https://x.com/user/status/123\n * GET /v1/posts/public/{id} (no token, publicly available only)
  * GET /v1/posts/{id}    Authorization: Bearer <official X API token>
  */
 class LocalXApiServer(private val port: Int = 8787) {
@@ -88,16 +88,23 @@ class LocalXApiServer(private val port: Int = 8787) {
                 when {
                     path == "/health" -> reply(connection, 200, JSONObject()
                         .put("ok", true).put("service", "X Local API").put("version", "1.0").toString())
-                    path == "/v1/posts/oembed" -> {
-                        val postUrl = uri.getQueryParameter("url")
-                        val normalized = normalizePostUrl(postUrl)
-                        if (normalized == null) reply(connection, 400, error("Valid public X status URL required"))
-                        else {
-                            val upstream = "https://publish.x.com/oembed?omit_script=true&url=" +
-                                URLEncoder.encode(normalized, "UTF-8")
-                            val result = fetch(upstream, null)
+                    path == "/v1/posts/oembed" || path == "/v1/resolve" -> {
+                        val input = uri.getQueryParameter("url")
+                        val target = parseXUrl(input)
+                        if (target == null) {
+                            reply(connection, 400, error("Provide an X.com profile or status URL"))
+                        } else {
+                            val result = when (target) {
+                                is XTarget.Post -> fetchPublicPost(target)
+                                is XTarget.Profile -> fetchPublicProfile(target)
+                            }
                             reply(connection, result.first, result.second)
                         }
+                    }
+                    path.matches(Regex("^/v1/posts/public/[0-9]{1,20}$")) -> {
+                        val id = path.substringAfterLast('/')
+                        val result = fetch("https://api.fxtwitter.com/2/status/$id", null)
+                        reply(connection, result.first, decorate(result, "fxembed", "post"))
                     }
                     path.matches(Regex("^/v1/posts/[0-9]{1,20}$")) -> {
                         val bearer = headers["authorization"]
@@ -118,17 +125,71 @@ class LocalXApiServer(private val port: Int = 8787) {
         }
     }
 
-    private fun normalizePostUrl(input: String?): String? {
+    private sealed class XTarget {
+        data class Post(val user: String, val id: String) : XTarget()
+        data class Profile(val user: String) : XTarget()
+    }
+
+    private fun parseXUrl(input: String?): XTarget? {
         if (input.isNullOrBlank() || input.length > 2048) return null
         return try {
-            val uri = Uri.parse(input.trim())
+            val raw = input.trim()
+            val value = if (raw.startsWith("https://", ignoreCase = true)) raw
+                else if (raw.startsWith("http://", ignoreCase = true)) return null
+                else "https://$raw"
+            val uri = Uri.parse(value)
             if (uri.scheme?.lowercase() != "https") return null
             val host = uri.host?.lowercase() ?: return null
             if (host !in setOf("x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com")) return null
-            val match = Regex("^/([A-Za-z0-9_]{1,15})/status/([0-9]{1,20})/?$").matchEntire(uri.path.orEmpty())
-                ?: return null
-            "https://x.com/${match.groupValues[1]}/status/${match.groupValues[2]}"
+            val path = uri.path.orEmpty().trimEnd('/')
+            val post = Regex("^/([A-Za-z0-9_]{1,15})/status/([0-9]{1,20})(?:/(?:photo|video)/[0-9]+)?$").matchEntire(path)
+            if (post != null) return XTarget.Post(post.groupValues[1], post.groupValues[2])
+            val profile = Regex("^/([A-Za-z0-9_]{1,15})$").matchEntire(path)
+            if (profile != null) XTarget.Profile(profile.groupValues[1]) else null
         } catch (_: Exception) { null }
+    }
+
+    private fun fetchPublicPost(post: XTarget.Post): Pair<Int, String> {
+        // FxEmbed exposes publicly available post metadata, including available media.
+        // It cannot access protected/deleted posts or override X access restrictions.
+        val fx = fetch("https://api.fxtwitter.com/2/status/${post.id}", null)
+        if (fx.first in 200..299 && hasPost(fx.second)) {
+            return fx.first to decorate(fx, "fxembed", "post")
+        }
+        val normalized = "https://x.com/${post.user}/status/${post.id}"
+        val embed = fetch(
+            "https://publish.x.com/oembed?omit_script=true&url=" + URLEncoder.encode(normalized, "UTF-8"),
+            null
+        )
+        if (embed.first in 200..299) return embed.first to decorate(embed, "x_oembed", "embed")
+        return 404 to JSONObject()
+            .put("error", "Post unavailable from public sources")
+            .put("message", "X or the public provider cannot serve this post. It may be restricted, deleted or unavailable.")
+            .put("post_id", post.id)
+            .put("fx_status", fx.first)
+            .put("oembed_status", embed.first)
+            .toString()
+    }
+
+    private fun fetchPublicProfile(profile: XTarget.Profile): Pair<Int, String> {
+        val result = fetch("https://api.fxtwitter.com/" + profile.user, null)
+        if (result.first in 200..299) return result.first to decorate(result, "fxembed", "profile")
+        return 404 to JSONObject()
+            .put("error", "Public profile not available")
+            .put("username", profile.user)
+            .put("upstream_status", result.first)
+            .toString()
+    }
+
+    private fun hasPost(body: String): Boolean = runCatching {
+        val json = JSONObject(body)
+        json.optJSONObject("status") != null || json.optJSONObject("tweet") != null
+    }.getOrDefault(false)
+
+    private fun decorate(result: Pair<Int, String>, source: String, type: String): String {
+        return runCatching {
+            JSONObject(result.second).put("source", source).put("type", type).toString()
+        }.getOrElse { result.second }
     }
 
     private fun fetch(url: String, bearer: String?): Pair<Int, String> {
