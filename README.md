@@ -29,3 +29,11 @@ L'identifiant de package reste `com.jfdedit3.bytrolauncher` pour préserver la p
 ```bash
 gradle assembleDebug
 ```
+
+## Nouvelle interface Galerie 3.1
+
+Écran inspiré de la maquette violet/noir : logo dégradé, header compact, grille photo 3 colonnes, pastilles Tous/Photos/Vidéos/Favoris, menu latéral avec statistiques de stockage, navigation basse Galerie/Albums/Favoris/Statistiques. Les albums proviennent de MediaStore, les favoris sont enregistrés localement dans les préférences de l'application, et la recherche filtre les noms de fichiers et les noms d'albums.
+
+Le lecteur plein écran inclut Partager, Modifier (si un éditeur est disponible), Informations, Supprimer (avec autorisation système sur Android 11+) et un bandeau de vignettes voisines. Les photos de la maquette ne sont pas incluses : la grille montre exclusivement les médias présents sur le téléphone.
+
+Note : les artefacts APK sur GitHub Actions ne sont disponibles qu'après compilation réussie. Les conflits entre certificats de signature Android restent indépendants des changements d'interface.
