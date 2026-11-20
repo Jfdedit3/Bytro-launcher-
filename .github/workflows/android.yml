@@ -1,16 +1,19 @@
-name: Android APK Build
+name: X Local API Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      X_LOCAL_KEYSTORE_BASE64: ${{ secrets.X_LOCAL_KEYSTORE_BASE64 }}
+      X_LOCAL_KEYSTORE_PASSWORD: ${{ secrets.X_LOCAL_KEYSTORE_PASSWORD }}
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -19,16 +22,48 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle
+      - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.7
+          gradle-version: '8.7'
+
+      - name: Restore reusable Android signing key
+        if: env.X_LOCAL_KEYSTORE_BASE64 != '' && env.X_LOCAL_KEYSTORE_PASSWORD != ''
+        shell: bash
+        run: |
+          printf '%s' "$X_LOCAL_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/x-local-api-upload.jks"
+          echo "X_LOCAL_KEYSTORE_FILE=$RUNNER_TEMP/x-local-api-upload.jks" >> "$GITHUB_ENV"
 
       - name: Build debug APK
-        run: gradle assembleDebug
+        run: gradle --no-daemon assembleDebug
 
-      - name: Upload APK artifact
+      - name: Build upgradeable signed release APK
+        if: env.X_LOCAL_KEYSTORE_BASE64 != '' && env.X_LOCAL_KEYSTORE_PASSWORD != ''
+        run: gradle --no-daemon assembleRelease
+
+      - name: Rename debug APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk x-local-api-debug.apk
+
+      - name: Rename signed release APK
+        if: env.X_LOCAL_KEYSTORE_BASE64 != '' && env.X_LOCAL_KEYSTORE_PASSWORD != ''
+        run: cp app/build/outputs/apk/release/app-release.apk x-local-api-update.apk
+
+      - name: Upload development APK
         uses: actions/upload-artifact@v4
         with:
-          name: bytro-launcher-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: x-local-api-debug
+          path: x-local-api-debug.apk
+          if-no-files-found: error
+
+      - name: Upload signed update APK
+        if: env.X_LOCAL_KEYSTORE_BASE64 != '' && env.X_LOCAL_KEYSTORE_PASSWORD != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-local-api-signed-update
+          path: x-local-api-update.apk
+          if-no-files-found: error
+
+      - name: Explain signing setup
+        if: env.X_LOCAL_KEYSTORE_BASE64 == '' || env.X_LOCAL_KEYSTORE_PASSWORD == ''
+        run: |
+          echo '::warning::No persistent signing secrets configured. Debug APK may require uninstalling previous versions. Set X_LOCAL_KEYSTORE_BASE64 and X_LOCAL_KEYSTORE_PASSWORD in repository Actions secrets for upgradeable signed release APKs.'
