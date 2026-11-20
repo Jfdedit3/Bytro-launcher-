@@ -44,6 +44,7 @@ object XPublicExtractor {
         val widget = get(endpoint)
         var syndicationKind = "no_json"
         var responseKeys = JSONArray()
+        var tombstoneMessage: String? = null
         if (widget.code == 200) {
             try {
                 val json = JSONObject(widget.content)
@@ -59,6 +60,9 @@ object XPublicExtractor {
                 if (json.length() == 0) syndicationKind = "empty_object"
                 if (json.optString("__typename") == "TweetTombstone") {
                     syndicationKind = "TweetTombstone"
+                    val tombstone = json.optJSONObject("tombstone")
+                    tombstoneMessage = tombstone?.optJSONObject("text")?.optString("text")
+                        ?: tombstone?.optString("text")
                 }
             } catch (_: Exception) {
                 syndicationKind = "invalid_json"
@@ -85,14 +89,21 @@ object XPublicExtractor {
                 }
             }
         }
-        return failure(404, "post_unavailable",
-            "X did not return public post data. The post may be restricted, deleted, or blocked to logged-out visitors.",
+        val isTombstone = syndicationKind == "TweetTombstone"
+        return failure(if (isTombstone) 403 else 502,
+            if (isTombstone) "x_syndication_tombstone" else "x_public_data_unavailable",
+            if (isTombstone)
+                "X returned a TweetTombstone instead of the post. This feed does not provide its text or media; the post is not necessarily deleted."
+            else "No usable post data was returned by the public X endpoints.",
             JSONObject()
                 .put("id", id)
                 .put("syndication_status", widget.code)
                 .put("syndication_type", syndicationKind)
                 .put("syndication_keys", responseKeys)
-                .put("response_size", widget.content.length))
+                .put("response_size", widget.content.length)
+                .put("tombstone_message", tombstoneMessage ?: JSONObject.NULL)
+                .put("suggestion", "Check this post in X while signed in, or use the authenticated official X API if you have access."))
+
     }
 
     fun profile(username: String): Result {
