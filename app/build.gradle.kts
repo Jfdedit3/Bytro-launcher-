@@ -7,18 +7,37 @@ android {
     namespace = "com.jfdedit3.bytrolauncher"
     compileSdk = 35
 
+    val ciRun = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+    val signingFile = System.getenv("X_LOCAL_KEYSTORE_FILE")
+    val signingPassword = System.getenv("X_LOCAL_KEYSTORE_PASSWORD")
+    val hasSigning = !signingFile.isNullOrBlank() && !signingPassword.isNullOrBlank()
+
+    signingConfigs {
+        if (hasSigning) {
+            create("privateRelease") {
+                storeFile = file(signingFile!!)
+                storePassword = signingPassword
+                keyAlias = "xlocalapi"
+                keyPassword = signingPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.jfdedit3.bytrolauncher"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 10000 + ciRun
+        versionName = "2.2.$ciRun"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
+            if (hasSigning) {
+                signingConfig = signingConfigs.getByName("privateRelease")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
