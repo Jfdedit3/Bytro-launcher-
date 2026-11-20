@@ -8,7 +8,10 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.PopupMenu
+import android.view.Gravity
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.graphics.drawable.GradientDrawable
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -69,23 +72,7 @@ class MainActivity : ImmersiveActivity() {
             if (show) binding.searchInput.requestFocus()
             else binding.searchInput.setText("")
         }
-        binding.menuButton.setOnClickListener {
-            val popup = PopupMenu(this, binding.menuButton)
-            popup.menu.add("Actualiser")
-            popup.menu.add("Albums")
-            popup.menu.add("Statistiques")
-            popup.menu.add("Autorisations")
-            popup.setOnMenuItemClickListener { item ->
-                when (item.title.toString()) {
-                    "Actualiser" -> refresh()
-                    "Albums" -> chooseAlbum()
-                    "Statistiques" -> showStats()
-                    "Autorisations" -> askAccess(true)
-                }
-                true
-            }
-            popup.show()
-        }
+        binding.menuButton.setOnClickListener { showDrawer() }
         binding.searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -222,6 +209,92 @@ class MainActivity : ImmersiveActivity() {
                 filter = 0
                 showItems()
             }.show()
+    }
+
+    private fun showDrawer() {
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (density * v).toInt()
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(23), dp(42), dp(23), dp(25))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(0xFF271043.toInt(), 0xFF0E0C1B.toInt(), 0xFF13101F.toInt())
+            ).apply { cornerRadius = dp(25).toFloat() }
+        }
+        val header = TextView(this).apply {
+            text = "▧\n\nMa Galerie"
+            textSize = 27f
+            setTextColor(-1)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, dp(18), 0, dp(3))
+        }
+        container.addView(header)
+        val sub = TextView(this).apply {
+            text = "Tes médias, sur ton appareil"
+            textSize = 13f
+            setTextColor(0xFFCBC2E1.toInt())
+            setPadding(0, 0, 0, dp(30))
+        }
+        container.addView(sub)
+        val dialog = AlertDialog.Builder(this).setView(container).create()
+        fun drawerItem(icon: String, label: String, action: () -> Unit) {
+            val view = TextView(this).apply {
+                text = icon + "    " + label
+                textSize = 18f
+                setTextColor(-1)
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(8), dp(8), dp(8))
+                background = GradientDrawable().apply {
+                    setColor(0x442B1B53)
+                    cornerRadius = dp(14).toFloat()
+                }
+                setOnClickListener {
+                    dialog.dismiss()
+                    action()
+                }
+            }
+            val params = LinearLayout.LayoutParams(-1, dp(58)).apply {
+                bottomMargin = dp(10)
+            }
+            container.addView(view, params)
+        }
+        drawerItem("▧", "Galerie") {
+            tab = 0
+            album = null
+            filter = 0
+            showItems()
+        }
+        drawerItem("▱", "Albums") { chooseAlbum() }
+        drawerItem("♡", "Favoris") {
+            tab = 2
+            album = null
+            filter = 3
+            showItems()
+        }
+        drawerItem("▥", "Statistiques") { showStats() }
+        drawerItem("⚙", "Autorisations") { askAccess(true) }
+        val storage = TextView(this).apply {
+            val stat = android.os.StatFs(android.os.Environment.getExternalStorageDirectory().path)
+            val capacity = stat.totalBytes / (1024 * 1024 * 1024)
+            val used = (stat.totalBytes - stat.availableBytes) / (1024 * 1024 * 1024)
+            text = "STOCKAGE\n\n" + used + " Go / " + capacity + " Go"
+            textSize = 14f
+            setTextColor(0xFFD6CDE9.toInt())
+            setPadding(dp(8), dp(18), 0, 0)
+        }
+        container.addView(storage)
+        dialog.setOnShowListener {
+            dialog.window?.apply {
+                setBackgroundDrawableResource(android.R.color.transparent)
+                setGravity(Gravity.START or Gravity.CENTER_VERTICAL)
+                setLayout(
+                    (resources.displayMetrics.widthPixels * 0.83).toInt(),
+                    android.view.WindowManager.LayoutParams.MATCH_PARENT
+                )
+            }
+        }
+        dialog.show()
     }
 
     private fun showStats() {
