@@ -59,7 +59,7 @@ class LocalXApiServer(private val port: Int = 8787) {
     private fun handle(client: Socket) {
         client.use { connection ->
             try {
-                connection.soTimeout = 15000
+                connection.soTimeout = 30000
                 val reader = BufferedReader(InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))
                 val requestLine = reader.readLine() ?: return
                 val parts = requestLine.split(" ")
