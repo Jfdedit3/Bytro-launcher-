@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.jfdedit3.bytrolauncher.databinding.ActivityMainBinding
@@ -17,6 +20,7 @@ class MainActivity : ImmersiveActivity() {
     private val executor = Executors.newSingleThreadExecutor()
     private var allItems: List<GalleryMedia> = emptyList()
     private var filter = 0
+    private var search = ""
 
     private val requestPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -41,6 +45,15 @@ class MainActivity : ImmersiveActivity() {
         binding.allButton.setOnClickListener { setFilter(0) }
         binding.photosButton.setOnClickListener { setFilter(1) }
         binding.videosButton.setOnClickListener { setFilter(2) }
+        binding.searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                search = s?.toString()?.trim()?.lowercase().orEmpty()
+                setFilter(filter)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        updateSelectedFilter()
         askAccess()
     }
 
@@ -77,12 +90,17 @@ class MainActivity : ImmersiveActivity() {
             return
         }
         binding.galleryStatus.text = "Chargement des médias..."
+        binding.loadingIndicator.visibility = View.VISIBLE
+        binding.emptyState.visibility = View.GONE
         executor.execute {
             val result = runCatching { GalleryRepository.query(this) }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
+                binding.loadingIndicator.visibility = View.GONE
                 result.onSuccess {
                     allItems = it
+                    binding.photoCount.text = it.count { media -> !media.isVideo }.toString()
+                    binding.videoCount.text = it.count { media -> media.isVideo }.toString()
                     setFilter(filter)
                 }.onFailure {
                     binding.galleryStatus.text = "Impossible de lire les médias : " + it.javaClass.simpleName
@@ -94,12 +112,21 @@ class MainActivity : ImmersiveActivity() {
 
     private fun setFilter(value: Int) {
         filter = value
-        val visible = when (filter) {
+        val categoryItems = when (filter) {
             1 -> allItems.filter { !it.isVideo }
             2 -> allItems.filter { it.isVideo }
             else -> allItems
         }
+        val visible = if (search.isEmpty()) categoryItems else categoryItems.filter {
+            it.name.lowercase().contains(search)
+        }
         adapter.update(visible)
+        binding.resultCount.text = visible.size.toString() + " éléments"
+        binding.emptyState.visibility = if (visible.isEmpty()) View.VISIBLE else View.GONE
+        binding.emptyTitle.text = if (search.isNotEmpty()) "Aucun résultat" else "Aucun média"
+        binding.emptySubtitle.text = if (search.isNotEmpty()) "Essaie une autre recherche."
+            else "Tes photos et vidéos apparaîtront ici."
+        updateSelectedFilter()
         val label = when (filter) {
             1 -> "photos"
             2 -> "vidéos"
@@ -107,6 +134,15 @@ class MainActivity : ImmersiveActivity() {
         }
         binding.galleryStatus.text = visible.size.toString() + " " + label +
             " • Appuie sur un élément pour l'ouvrir"
+    }
+
+    private fun updateSelectedFilter() {
+        val chips = arrayOf(binding.allButton, binding.photosButton, binding.videosButton)
+        chips.forEachIndexed { index, chip ->
+            chip.isSelected = index == filter
+            chip.setTextColor(if (index == filter) android.graphics.Color.rgb(16, 17, 29)
+                else android.graphics.Color.WHITE)
+        }
     }
 
     override fun onResume() {
