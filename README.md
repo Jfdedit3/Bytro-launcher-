@@ -35,3 +35,17 @@ A successful public post response returns `id`, `url`, `text`, `author`, `create
 gradle assembleDebug
 ```
 The GitHub Actions workflow builds a debug APK on push to main and uploads it as an artifact.
+
+
+## Authenticated browser extraction (Android)
+
+X can return `TweetTombstone` to anonymous syndication even when a signed-in user can open the post. The Android app now has a **Open X / Sign in / Extract post** button that launches an embedded X WebView:
+
+1. Sign in directly to X in the browser (if X supports embedded login).
+2. Open the post inside this WebView and wait for it to render.
+3. Tap **Extract visible post JSON**. This evaluates a read-only DOM extraction script and captures the visible text, author handle, and visible image/video URLs.
+4. Return to the API screen and tap **Show last authenticated extraction**.
+
+The app's own HTTP server then exposes the last explicitly captured result at `GET /v1/session/latest` (no login data). This route is accessible only from **the same device** (`127.0.0.1`) while the application is running. Any local app may be able to call it, so do not extract sensitive/private posts.
+
+This is **not a general authenticated X API proxy**. It only reads an explicitly opened post, does not access X cookies or credentials from the local API, and cannot automatically fetch arbitrary restricted posts. Embedded sign-in may be blocked by X, and the DOM selectors may need updates when X changes its UI. Media streaming URLs are not guaranteed to be exposed by a video element.
