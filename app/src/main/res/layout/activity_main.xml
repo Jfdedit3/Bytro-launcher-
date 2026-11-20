@@ -1,52 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:background="@color/background_color">
+    android:background="@color/background_color"
+    android:orientation="vertical"
+    android:paddingTop="14dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="18dp"
+        android:text="MA GALERIE"
+        android:textColor="@color/text_primary"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/galleryStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="18dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="8dp"
+        android:text="Chargement..."
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="22dp"
-        android:orientation="vertical">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="X LOCAL API" android:textStyle="bold" android:textSize="28sp"
-            android:textColor="@color/text_primary"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="FxTwitter API v2: posts, profiles, images and videos."
-            android:textColor="@color/text_secondary" android:textSize="15sp"/>
-        <TextView android:id="@+id/serverStatus" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="24dp"
-            android:text="Starting local server..." android:textColor="@color/accent_color"
-            android:textSize="16sp"/>
-        <Button android:id="@+id/serverButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="12dp"
-            android:text="Stop server"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="20dp" android:text="X.COM URL" android:textStyle="bold"
-            android:textColor="@color/text_primary"/>
-        <EditText android:id="@+id/postUrl" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="6dp"
-            android:hint="https://x.com/user or /status/123456" android:inputType="textUri"
-            android:singleLine="true" android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary"/>
-        <Button android:id="@+id/previewButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="10dp"
-            android:text="Fetch via FxTwitter API"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="20dp" android:text="JSON RESPONSE" android:textStyle="bold"
-            android:textColor="@color/text_primary"/>
-        <TextView android:id="@+id/resultText" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:padding="12dp" android:background="@color/surface_color"
-            android:textColor="@color/text_primary" android:textIsSelectable="true"
-            android:text="Paste an X.com post or profile URL." android:textSize="13sp"/>
-        <Button android:id="@+id/copyButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="12dp"
-            android:text="Copy API endpoint"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Localhost API on 127.0.0.1:8787. Public requests use api.fxtwitter.com. No X login or API key required."
-            android:textColor="@color/text_secondary" android:textSize="12sp"/>
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp">
+        <Button android:id="@+id/allButton" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:text="Tout"/>
+        <Button android:id="@+id/photosButton" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:text="Photos"/>
+        <Button android:id="@+id/videosButton" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:text="Vidéos"/>
     </LinearLayout>
-</ScrollView>
+
+    <LinearLayout android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="horizontal"
+        android:paddingHorizontal="8dp">
+        <Button android:id="@+id/refreshButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content" android:text="Actualiser"/>
+        <Button android:id="@+id/permissionsButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content" android:text="Autorisation"/>
+    </LinearLayout>
+
+    <GridView
+        android:id="@+id/mediaGrid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="10dp"
+        android:horizontalSpacing="3dp"
+        android:verticalSpacing="3dp"
+        android:stretchMode="columnWidth"
+        android:numColumns="3" />
+</LinearLayout>
