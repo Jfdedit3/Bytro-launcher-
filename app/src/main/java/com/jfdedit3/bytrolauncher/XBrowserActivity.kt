@@ -83,39 +83,67 @@ class XBrowserActivity : ImmersiveActivity() {
         }
         val script = """
             (function() {
-              const id = POST_ID_JSON;
-              const article = [...document.querySelectorAll('article')].find(a =>
-                a.querySelector('a[href*="/status/" + id]')) || document.querySelector('article');
-              if (!article) return JSON.stringify({error:"post_not_rendered"});
-              const text = article.querySelector('[data-testid="tweetText"]');
-              const images = [...article.querySelectorAll('img[src*="pbs.twimg.com/media/"]')]
-                .map(e => e.currentSrc || e.src);
-              const videos = [...article.querySelectorAll('video')]
-                .map(e => e.currentSrc || e.src).filter(Boolean);
-              const handle = article.querySelector('[data-testid="User-Name"] a[href^="/"]');
-              return JSON.stringify({
-                type: "post", id: id, url: location.href,
-                text: text ? text.innerText : "",
-                author: {username: handle ? handle.getAttribute('href').slice(1) : ""},
-                media: [...new Set(images)].map(url => ({type:"image", url}))
-                  .concat([...new Set(videos)].map(url => ({type:"video", url}))),
-                source: "x_authenticated_dom", partial: true
-              });
+              try {
+                const id = POST_ID_JSON;
+                const articles = Array.from(document.querySelectorAll('article'));
+                const article = articles.find(a =>
+                  Array.from(a.querySelectorAll('a[href*="/status/"]')).some(link => {
+                    const href = link.getAttribute('href') || '';
+                    return href.includes('/status/' + id) &&
+                      (href.split('/status/')[1] || '').match(new RegExp('^' + id + '(?:[^0-9]|$)'));
+                  })
+                );
+                if (!article) return JSON.stringify({error:"post_not_rendered", articles:articles.length});
+                const text = article.querySelector('[data-testid="tweetText"]');
+                const images = Array.from(article.querySelectorAll('img'))
+                  .map(e => e.currentSrc || e.src)
+                  .filter(url => url.startsWith('https://pbs.twimg.com/media/'));
+                const videos = Array.from(article.querySelectorAll('video'))
+                  .map(e => e.currentSrc || e.src)
+                  .filter(url => url.startsWith('https://video.twimg.com/'));
+                const usernameAnchor = article.querySelector('[data-testid="User-Name"] a[href^="/"]');
+                const handle = usernameAnchor ? usernameAnchor.getAttribute('href').split('/')[1] : '';
+                const result = {
+                  type: "post", id: id, url: location.href,
+                  text: text ? text.innerText : "",
+                  author: {username: handle},
+                  media: Array.from(new Set(images)).map(url => ({type:"image", url:url}))
+                    .concat(Array.from(new Set(videos)).map(url => ({type:"video", url:url}))),
+                  source: "x_authenticated_dom",
+                  partial: true
+                };
+                return JSON.stringify(result);
+              } catch (e) {
+                return JSON.stringify({error:"javascript_error", message:String(e)});
+              }
             })();
         """.trimIndent().replace("POST_ID_JSON", JSONObject.quote(id))
         browser.evaluateJavascript(script) { raw ->
             try {
-                val decoded = JSONTokener(raw).nextValue() as? String
-                    ?: throw IllegalStateException("Invalid result")
-                val json = JSONObject(decoded)
-                if (json.has("error")) status.text = "Post not rendered yet. Scroll and retry."
-                else {
-                    XSessionCache.save(json.toString())
-                    status.text = "Post extracted. Return to API to view JSON."
-                    Toast.makeText(this, "Post captured locally", Toast.LENGTH_SHORT).show()
+                if (raw.isNullOrBlank() || raw == "null") {
+                    status.text = "X page did not return script data. Reload X and retry."
+                    return@evaluateJavascript
                 }
-            } catch (_: Exception) {
-                status.text = "Unable to extract page. X layout may have changed."
+                val decoded = JSONTokener(raw).nextValue() as? String
+                    ?: throw IllegalStateException("Unexpected WebView result: " + raw.take(140))
+                val json = JSONObject(decoded)
+                when (json.optString("error")) {
+                    "post_not_rendered" -> {
+                        status.text = "Post not visible in X (articles: " +
+                            json.optInt("articles") + "). Wait for loading or scroll to it."
+                    }
+                    "javascript_error" -> {
+                        status.text = "Extractor JavaScript error: " + json.optString("message")
+                    }
+                    "" -> {
+                        XSessionCache.save(json.toString())
+                        status.text = "Post extracted. Return to API to view JSON."
+                        Toast.makeText(this, "Post captured locally", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> status.text = "Extraction error: " + json.optString("error")
+                }
+            } catch (error: Exception) {
+                status.text = "JSON decoding error: " + (error.message ?: error.javaClass.simpleName)
             }
         }
     }
