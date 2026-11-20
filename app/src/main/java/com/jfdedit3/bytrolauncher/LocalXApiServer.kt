@@ -2,6 +2,7 @@ package com.jfdedit3.bytrolauncher
 
 import android.net.Uri
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class LocalXApiServer(private val port: Int = 8787) {
     private val active = AtomicBoolean(false)
-    private val pool = Executors.newFixedThreadPool(4)
+    private var pool = Executors.newFixedThreadPool(4)
     private var socket: ServerSocket? = null
 
     val isRunning: Boolean get() = active.get()
@@ -31,6 +32,7 @@ class LocalXApiServer(private val port: Int = 8787) {
     @Synchronized
     fun start() {
         if (active.get()) return
+        if (pool.isShutdown) pool = Executors.newFixedThreadPool(4)
         val server = ServerSocket(port, 16, InetAddress.getByName("127.0.0.1"))
         socket = server
         active.set(true)
@@ -142,9 +144,17 @@ class LocalXApiServer(private val port: Int = 8787) {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.use { input ->
-                val bytes = input.readNBytes(1024 * 1024 + 1)
-                if (bytes.size > 1024 * 1024) throw IllegalStateException("Response too large")
-                String(bytes, StandardCharsets.UTF_8)
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count == -1) break
+                    total += count
+                    if (total > 1024 * 1024) throw IllegalStateException("Response too large")
+                    output.write(buffer, 0, count)
+                }
+                output.toString("UTF-8")
             }.orEmpty()
             val json = runCatching { JSONObject(body).toString() }.getOrElse {
                 error("Upstream returned non-JSON content")
