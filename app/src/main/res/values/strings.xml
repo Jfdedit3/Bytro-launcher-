@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">X Local API</string>
-    <string name="app_subtitle">Local REST API for X.com</string>
+    <string name="app_name">Ma Galerie</string>
+    <string name="app_subtitle">Photos et vidéos de mon téléphone</string>
 </resources>
