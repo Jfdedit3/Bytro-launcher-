@@ -1,5 +1,6 @@
 package com.jfdedit3.bytrolauncher
 
+import androidx.appcompat.app.AlertDialog
 import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -27,6 +28,7 @@ class MainActivity : ImmersiveActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         startApi()
+        showLastCrashIfPresent()
 
         binding.serverButton.setOnClickListener {
             if (server?.isRunning == true) {
@@ -83,6 +85,22 @@ class MainActivity : ImmersiveActivity() {
             clipboard.setPrimaryClip(ClipData.newPlainText("X Local API", "http://127.0.0.1:8787/health"))
             Toast.makeText(this, "API endpoint copied", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun showLastCrashIfPresent() {
+        val prefs = getSharedPreferences("diagnostics", MODE_PRIVATE)
+        val report = prefs.getString("last_crash", null) ?: return
+        prefs.edit().remove("last_crash").apply()
+        AlertDialog.Builder(this)
+            .setTitle("Previous app crash")
+            .setMessage(report.take(2200))
+            .setPositiveButton("Copy report") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("X Local API crash", report))
+                Toast.makeText(this, "Crash report copied", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun startApi() {
