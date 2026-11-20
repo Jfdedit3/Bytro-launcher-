@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Local-only HTTP API. No token is stored or included in the app.
  * GET /health
- * GET /v1/resolve?url=https://x.com/user/status/123\n * GET /v1/posts/public/{id} (no token, publicly available only)
+ * GET /v1/resolve?url=https://x.com/user/status/123
+ * GET /v1/posts/public/{id} (via FxTwitter API v2)
  * GET /v1/posts/{id}    Authorization: Bearer <official X API token>
  */
 class LocalXApiServer(private val port: Int = 8787) {
@@ -87,7 +88,7 @@ class LocalXApiServer(private val port: Int = 8787) {
                 val path = uri.path.orEmpty()
                 when {
                     path == "/health" -> reply(connection, 200, JSONObject()
-                        .put("ok", true).put("service", "X Local API").put("version", "2.1").put("engine", "x_direct").toString())
+                        .put("ok", true).put("service", "X Local API").put("version", "2.3").put("engine", "fxtwitter_api_v2").toString())
                     path == "/v1/session/latest" -> {
                         val saved = XSessionCache.latest()
                         if (saved == null) reply(connection, 404, error("No extracted post available"))
