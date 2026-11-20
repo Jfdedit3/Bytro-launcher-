@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.jfdedit3.bytrolauncher.databinding.ActivityMainBinding
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
@@ -54,7 +55,15 @@ class MainActivity : AppCompatActivity() {
                         body
                     } finally { conn.disconnect() }
                 } catch (e: Exception) { "Request failed: ${e.message}" }
-                mainThread.post { if (!isFinishing && !isDestroyed) binding.resultText.text = response }
+                mainThread.post {
+                    if (!isFinishing && !isDestroyed) {
+                        binding.resultText.text = try {
+                            JSONObject(response).toString(2)
+                        } catch (_: Exception) {
+                            response
+                        }
+                    }
+                }
             }
         }
         binding.copyButton.setOnClickListener {
