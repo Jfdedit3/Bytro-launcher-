@@ -13,7 +13,7 @@
             android:text="X LOCAL API" android:textStyle="bold" android:textSize="28sp"
             android:textColor="@color/text_primary"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="Local API for public X posts, profiles, media and official X v2 lookups."
+            android:layout_marginTop="8dp" android:text="FxTwitter API v2: posts, profiles, images and videos."
             android:textColor="@color/text_secondary" android:textSize="15sp"/>
         <TextView android:id="@+id/serverStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="24dp"
@@ -30,15 +30,9 @@
             android:hint="https://x.com/user or /status/123456" android:inputType="textUri"
             android:singleLine="true" android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"/>
-        <Button android:id="@+id/openXButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="10dp"
-            android:text="Open X / Sign in / Extract post"/>
-        <Button android:id="@+id/showSessionButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:text="Show last authenticated extraction"/>
         <Button android:id="@+id/previewButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="10dp"
-            android:text="Fetch public X JSON"/>
+            android:text="Fetch via FxTwitter API"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="20dp" android:text="JSON RESPONSE" android:textStyle="bold"
             android:textColor="@color/text_primary"/>
@@ -46,13 +40,13 @@
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
             android:padding="12dp" android:background="@color/surface_color"
             android:textColor="@color/text_primary" android:textIsSelectable="true"
-            android:text="Enter a public post URL, then fetch." android:textSize="13sp"/>
+            android:text="Paste an X.com post or profile URL." android:textSize="13sp"/>
         <Button android:id="@+id/copyButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="12dp"
             android:text="Copy API endpoint"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="API bound to 127.0.0.1:8787 only. It runs while this screen is open. X API v2 requires your own developer token. No tokens are stored."
+            android:text="Localhost API on 127.0.0.1:8787. Public requests use api.fxtwitter.com. No X login or API key required."
             android:textColor="@color/text_secondary" android:textSize="12sp"/>
     </LinearLayout>
 </ScrollView>
