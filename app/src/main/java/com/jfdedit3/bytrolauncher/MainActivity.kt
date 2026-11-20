@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import com.jfdedit3.bytrolauncher.databinding.ActivityMainBinding
 import java.net.HttpURLConnection
 import java.net.URL
@@ -17,7 +16,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ImmersiveActivity() {
     private lateinit var binding: ActivityMainBinding
     private var server: LocalXApiServer? = null
     private val executor = Executors.newSingleThreadExecutor()
