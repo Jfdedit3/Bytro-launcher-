@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.MediaController
 import android.widget.TextView
@@ -130,6 +131,57 @@ class MediaViewerActivity : ImmersiveActivity() {
         actions.addView(bottomAction("ⓘ", "Informations") { details() })
         actions.addView(bottomAction("♜", "Supprimer") { askDelete() })
         root.addView(actions, FrameLayout.LayoutParams(-1, dp(86), Gravity.BOTTOM))
+        val nearby = intent.getStringArrayListExtra("strip_uris").orEmpty()
+        val names = intent.getStringArrayListExtra("strip_names").orEmpty()
+        val videos = intent.getBooleanArrayExtra("strip_videos")
+        if (nearby.isNotEmpty()) {
+            val strip = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(dp(10), dp(7), dp(10), dp(7))
+                setBackgroundColor(0xC9110E20.toInt())
+            }
+            nearby.forEachIndexed { index, raw ->
+                val previewUri = Uri.parse(raw)
+                val preview = ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setBackgroundColor(0xFF302745.toInt())
+                    alpha = if (raw == mediaUri.toString()) 1.0f else 0.7f
+                    setOnClickListener {
+                        if (raw != mediaUri.toString()) {
+                            startActivity(Intent(this@MediaViewerActivity,
+                                MediaViewerActivity::class.java)
+                                .putExtra("media_uri", raw)
+                                .putExtra("media_name", names.getOrNull(index) ?: "Média")
+                                .putExtra("is_video", videos?.getOrNull(index) ?: false)
+                                .putStringArrayListExtra("strip_uris", ArrayList(nearby))
+                                .putStringArrayListExtra("strip_names", ArrayList(names))
+                                .putExtra("strip_videos", videos))
+                            finish()
+                        }
+                    }
+                }
+                strip.addView(preview, LinearLayout.LayoutParams(dp(54), dp(54)).apply {
+                    marginEnd = dp(7)
+                })
+                worker.execute {
+                    val bmp = runCatching {
+                        if (Build.VERSION.SDK_INT >= 29)
+                            contentResolver.loadThumbnail(previewUri,
+                                android.util.Size(dp(110), dp(110)), null)
+                        else null
+                    }.getOrNull()
+                    if (bmp != null) runOnUiThread {
+                        if (!isFinishing && !isDestroyed) preview.setImageBitmap(bmp)
+                    }
+                }
+            }
+            val scroll = HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(strip)
+            }
+            root.addView(scroll, FrameLayout.LayoutParams(-1, dp(70),
+                Gravity.BOTTOM).apply { bottomMargin = dp(86) })
+        }
     }
 
     private fun action(label: String, size: Float, onClick: () -> Unit): TextView =
