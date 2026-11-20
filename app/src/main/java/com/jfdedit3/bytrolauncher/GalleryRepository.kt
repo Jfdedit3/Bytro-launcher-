@@ -66,7 +66,9 @@ class GalleryGridAdapter(
         override fun sizeOf(key: String, bmp: Bitmap): Int =
             (bmp.byteCount / 1024).coerceAtLeast(1)
     }
-    private val size = (context.resources.displayMetrics.widthPixels / 3).coerceAtLeast(90)
+    private val density = context.resources.displayMetrics.density
+    private val size = ((context.resources.displayMetrics.widthPixels - 26 * density) / 3)
+        .toInt().coerceAtLeast(84)
 
     fun update(data: List<GalleryMedia>) {
         items.clear()
@@ -92,6 +94,11 @@ class GalleryGridAdapter(
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 setBackgroundColor(Color.rgb(28, 32, 40))
             }
+            image.background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xFF27213C.toInt())
+                cornerRadius = 12f * density
+            }
+            image.clipToOutline = true
             frame.addView(image, FrameLayout.LayoutParams(-1, -1))
             val badge = TextView(context).apply {
                 text = "▶"
@@ -100,14 +107,17 @@ class GalleryGridAdapter(
                 setTextColor(Color.WHITE)
                 background = ColorDrawable(0x88000000.toInt())
             }
-            frame.addView(badge, FrameLayout.LayoutParams(size / 4, size / 4,
+            frame.addView(badge, FrameLayout.LayoutParams(size / 3, size / 4,
                 Gravity.END or Gravity.BOTTOM))
             val heart = TextView(context).apply {
                 text = "♡"
                 textSize = 23f
                 gravity = Gravity.CENTER
                 setTextColor(Color.WHITE)
-                setBackgroundColor(0x770A0B16)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(0xBB160F2A.toInt())
+                }
             }
             frame.addView(heart, FrameLayout.LayoutParams(size / 3, size / 3,
                 Gravity.TOP or Gravity.END))
