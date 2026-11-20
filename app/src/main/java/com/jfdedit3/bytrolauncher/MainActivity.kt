@@ -1,112 +1,86 @@
 package com.jfdedit3.bytrolauncher
 
-import android.content.Intent
-import android.net.Uri
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
-import android.view.KeyEvent
-import android.view.Menu
-import android.view.View
-import android.view.inputmethod.EditorInfo
-import android.widget.PopupMenu
-import androidx.activity.OnBackPressedCallback
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.viewpager2.widget.ViewPager2
 import com.jfdedit3.bytrolauncher.databinding.ActivityMainBinding
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private lateinit var pagerAdapter: GamePagerAdapter
+    private var server: LocalXApiServer? = null
+    private val executor = Executors.newSingleThreadExecutor()
+    private val mainThread = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        startApi()
 
-        pagerAdapter = GamePagerAdapter(this)
-        binding.viewPager.adapter = pagerAdapter
-        binding.viewPager.offscreenPageLimit = 1
-
-        binding.gamePickerButton.setOnClickListener { showGameMenu(it) }
-        binding.refreshButton.setOnClickListener { currentFragment()?.reloadPage() }
-        binding.moreButton.setOnClickListener { showMoreMenu(it) }
-
-        binding.urlInput.setOnEditorActionListener { _, actionId, event ->
-            val submitted = actionId == EditorInfo.IME_ACTION_GO ||
-                actionId == EditorInfo.IME_ACTION_DONE ||
-                actionId == EditorInfo.IME_ACTION_SEARCH ||
-                (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
-            if (submitted) {
-                currentFragment()?.loadCustomUrl(binding.urlInput.text?.toString().orEmpty())
-                binding.urlInput.clearFocus()
-            }
-            submitted
+        binding.serverButton.setOnClickListener {
+            if (server?.isRunning == true) {
+                server?.stop()
+                server = null
+                setStatus("Server stopped")
+            } else startApi()
         }
-
-        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                updateUrlBox(currentFragment()?.getCurrentUrl() ?: GameRepository.games[position].url)
+        binding.previewButton.setOnClickListener {
+            val url = binding.postUrl.text.toString().trim()
+            if (url.isEmpty()) {
+                binding.resultText.text = "Enter an X.com status URL."
+                return@setOnClickListener
             }
-        })
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                val fragment = currentFragment()
-                if (fragment?.canGoBack() == true) {
-                    fragment.goBack()
-                } else if (binding.viewPager.currentItem != 0) {
-                    binding.viewPager.currentItem = 0
-                } else {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                }
+            binding.resultText.text = "Loading..."
+            val endpoint = "http://127.0.0.1:8787/v1/posts/oembed?url=" +
+                URLEncoder.encode(url, "UTF-8")
+            executor.execute {
+                val response = try {
+                    val conn = URL(endpoint).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 11000
+                    conn.readTimeout = 11000
+                    try {
+                        val body = (if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream)
+                            .bufferedReader().use { it.readText() }
+                        body
+                    } finally { conn.disconnect() }
+                } catch (e: Exception) { "Request failed: ${e.message}" }
+                mainThread.post { if (!isFinishing && !isDestroyed) binding.resultText.text = response }
             }
-        })
-
-        updateUrlBox(GameRepository.games[binding.viewPager.currentItem].url)
-    }
-
-    private fun showGameMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
-        GameRepository.games.forEachIndexed { index, game ->
-            popup.menu.add(Menu.NONE, index, index, game.title)
         }
-        popup.setOnMenuItemClickListener {
-            binding.viewPager.currentItem = it.itemId
-            true
-        }
-        popup.show()
-    }
-
-    private fun showMoreMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
-        popup.menu.add(Menu.NONE, 1000, 0, "Open in browser")
-        popup.menu.add(Menu.NONE, 1001, 1, "Reload page")
-        popup.menu.add(Menu.NONE, 1002, 2, "Open default game URL")
-        popup.setOnMenuItemClickListener {
-            when (it.itemId) {
-                1000 -> openInBrowser(currentFragment()?.getCurrentUrl()
-                    ?: GameRepository.games[binding.viewPager.currentItem].url)
-                1001 -> currentFragment()?.reloadPage()
-                1002 -> currentFragment()?.loadCustomUrl(GameRepository.games[binding.viewPager.currentItem].url)
-            }
-            true
-        }
-        popup.show()
-    }
-
-    private fun openInBrowser(url: String) {
-        val uri = Uri.parse(url)
-        if (uri.scheme == "https" || uri.scheme == "http") {
-            runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+        binding.copyButton.setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("X Local API", "http://127.0.0.1:8787/health"))
+            Toast.makeText(this, "API endpoint copied", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun currentFragment(): GameWebFragment? =
-        pagerAdapter.getFragment(binding.viewPager.currentItem)
+    private fun startApi() {
+        try {
+            server = LocalXApiServer().also { it.start() }
+            setStatus("● Running on http://127.0.0.1:8787")
+        } catch (e: Exception) {
+            setStatus("Cannot start local API: ${e.message}")
+        }
+    }
 
-    fun updateUrlBox(url: String) {
-        if (!::binding.isInitialized || binding.urlInput.hasFocus()) return
-        binding.urlInput.setText(url)
-        binding.urlInput.setSelection(binding.urlInput.text?.length ?: 0)
+    private fun setStatus(message: String) {
+        binding.serverStatus.text = message
+        binding.serverButton.text = if (server?.isRunning == true) "Stop server" else "Start server"
+    }
+
+    override fun onDestroy() {
+        server?.stop()
+        executor.shutdownNow()
+        super.onDestroy()
     }
 }
